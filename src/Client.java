@@ -1,7 +1,8 @@
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Array;
-import java.net.DatagramPacket;
+import java.net.*;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -11,7 +12,7 @@ public class Client {
 
     int B = 1000;
 
-    public byte[] fileToByteArray(File file){
+    public byte[] fileToByteArray(File file) {
         byte[] array = new byte[0];
         try {
             array = Files.readAllBytes(file.toPath());
@@ -22,35 +23,121 @@ public class Client {
         return array;
     }
 
-    public ArrayList<byte[]> splitByteArray(File file){
+    public ArrayList<byte[]> splitByteArray(File file) {
         long size = file.length();
+        byte[] byteArrayOfS = ByteBuffer.allocate(8).putLong(size).array();
+
         int R = (new Random()).nextInt();
+        byte[] byteArrayOfR = ByteBuffer.allocate(4).putInt(R).array();
+
         byte[] fileArray = fileToByteArray(file);
-        int numOfPackets = (int) (size + B - 1)/B; //we need to round up since it's integer/long division and it automatically floors
-        ArrayList<byte[]> blocks = new ArrayList<>();
-        for(int i = 0; i<numOfPackets; i++){
-            System.out.println("loop: " + i);
-            int start = i*B;
+        int numOfPackets = (int) (size + B - 1) / B; //we need to round up since it's integer/long division and it automatically floors
+
+        ArrayList<byte[]> packets = new ArrayList<>();
+        for (int i = 0; i < numOfPackets; i++) {
+            int start = i * B;
             int end = start + B;
-            if(fileArray.length < end){
-                System.out.println("too short");
-                blocks.add(Arrays.copyOfRange(fileArray, start, fileArray.length));
-                break; //prevent index out of bounds exception in the case that we don't fully fill the last packet
+            byte[] byteArrayOfI = ByteBuffer.allocate(4).putInt(i).array();
+            byte[] packet;
+            byte[] data;
+
+            try {
+                //prevent index out of bounds exception in the case that we don't fully fill the last packet
+                if (fileArray.length < end) {
+                    data = Arrays.copyOfRange(fileArray, start, fileArray.length);
+                } else {
+                    data = Arrays.copyOfRange(fileArray, start, end);
+                }
+
+                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                outputStream.write(byteArrayOfR);
+                outputStream.write(byteArrayOfS);
+                outputStream.write(byteArrayOfI);
+                outputStream.write(data);
+                packet = outputStream.toByteArray();
+
+                packets.add(packet);
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-            blocks.add(Arrays.copyOfRange(fileArray, start, end));
         }
-        return blocks;
+
+        return packets;
     }
 
-    public static void main(String[] args){
-        File file = new File("C:\\Users\\Erik\\Desktop\\BFTP\\test.txt");
+    public ArrayList<DatagramPacket> createDatagramPackets(ArrayList<byte[]> bytePackets){
+        ArrayList<DatagramPacket> packets = new ArrayList<>();
+        try {
+            String host = "localhost";
+            int port = 6700;
+            InetAddress address = InetAddress.getByName(host);
+
+            for(byte[] bytePacket : bytePackets){
+                DatagramPacket packet = new DatagramPacket(bytePacket, bytePacket.length, address, port);
+                packets.add(packet);
+            }
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
+        return packets;
+    }
+
+    public static void main(String[] args) {
+        File file = new File("test.txt");
         Client client = new Client();
-        ArrayList<byte[]> blocks = client.splitByteArray(file);
+        ArrayList<DatagramPacket> packets = client.createDatagramPackets(client.splitByteArray(file));
 
-        for(byte[] block : blocks){
-            DatagramPacket packet = new DatagramPacket(block, client.B);
-            packet.
-            System.out.println(block);
-        }
+
+
+
+
+
     }
+
+    public boolean isCompleted(long[] status){
+        for(int i=0; i<status.length; i++){
+            if(status[i] != -1){
+                return false;
+            }
+        }
+        return true;
+    }
+
+
+    public void sendPackets(ArrayList<DatagramPacket> packets){
+        int windowSize = 5;
+        int noOfPackets = packets.size();
+        int windowStart = 0;
+        int windowEnd = noOfPackets + windowSize - 1;
+        DatagramSocket dsocket = null;
+        boolean completed = false;
+        long[] status = new long [packets.size()];
+
+        try {
+            dsocket = new DatagramSocket();
+            while(!completed){
+                for(int i = windowStart; i<windowEnd; i++){
+                    long delay = System.currentTimeMillis() - status[i];
+                    if(status[i] == 0 || status[i] >= delay){
+                        dsocket.send(packets.get(i));
+                        status[i] = System.currentTimeMillis();
+                    }
+                }
+
+                //TODO: Make sure that we are recieving a response from the server and updating status accordingly... right now we will never leave this loop
+                completed = isCompleted(status);
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        finally {
+            if(dsocket != null){
+                dsocket.close();
+            }
+        }
+
+    }
+
+
 }
