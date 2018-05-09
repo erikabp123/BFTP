@@ -10,7 +10,6 @@ import java.util.Random;
 
 public class Client {
 
-    int B = 1000;
 
     public byte[] fileToByteArray(File file) {
         byte[] array = new byte[0];
@@ -31,12 +30,12 @@ public class Client {
         byte[] byteArrayOfR = ByteBuffer.allocate(4).putInt(R).array();
 
         byte[] fileArray = fileToByteArray(file);
-        int numOfPackets = (int) (size + B - 1) / B; //we need to round up since it's integer/long division and it automatically floors
+        int numOfPackets = (int) (size + Server.B - 1) / Server.B; //we need to round up since it's integer/long division and it automatically floors
 
         ArrayList<byte[]> packets = new ArrayList<>();
         for (int i = 0; i < numOfPackets; i++) {
-            int start = i * B;
-            int end = start + B;
+            int start = i * Server.B;
+            int end = start + Server.B;
             byte[] byteArrayOfI = ByteBuffer.allocate(4).putInt(i).array();
             byte[] packet;
             byte[] data;
@@ -69,7 +68,7 @@ public class Client {
         ArrayList<DatagramPacket> packets = new ArrayList<>();
         try {
             String host = "localhost";
-            int port = 6700;
+            int port = 6788;
             InetAddress address = InetAddress.getByName(host);
 
             for(byte[] bytePacket : bytePackets){
@@ -87,11 +86,30 @@ public class Client {
         Client client = new Client();
         ArrayList<DatagramPacket> packets = client.createDatagramPackets(client.splitByteArray(file));
 
+        client.sendPackets(packets);
+
+//        int[] status = new int[packets.size()];
+//        try {
+//            DatagramSocket dSocket = new DatagramSocket();
+//            for(DatagramPacket packet : packets){
+//                dSocket.send(packet);
+//            }
+//
+//            byte[] buffer = new byte[Server.B];
+//            DatagramPacket reply = new DatagramPacket(buffer, buffer.length);
+//            dSocket.receive(reply);
+//            System.out.println(reply);
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
 
 
+    }
 
 
-
+    public static int extractIntFromReply(DatagramPacket reply){
+        byte[] intAsByteArray = reply.getData();
+        return ByteBuffer.wrap(intAsByteArray).getInt();
     }
 
     public boolean isCompleted(long[] status){
@@ -100,6 +118,7 @@ public class Client {
                 return false;
             }
         }
+        System.out.println("Completed");
         return true;
     }
 
@@ -108,23 +127,30 @@ public class Client {
         int windowSize = 5;
         int noOfPackets = packets.size();
         int windowStart = 0;
-        int windowEnd = noOfPackets + windowSize - 1;
-        DatagramSocket dsocket = null;
+        int windowEnd = windowStart + windowSize - 1;
+        DatagramSocket dSocket = null;
         boolean completed = false;
         long[] status = new long [packets.size()];
 
         try {
-            dsocket = new DatagramSocket();
+            dSocket = new DatagramSocket();
             while(!completed){
                 for(int i = windowStart; i<windowEnd; i++){
                     long delay = System.currentTimeMillis() - status[i];
                     if(status[i] == 0 || status[i] >= delay){
-                        dsocket.send(packets.get(i));
+                        dSocket.send(packets.get(i));
                         status[i] = System.currentTimeMillis();
+
+                        byte[] buffer = new byte[Server.B];
+                        DatagramPacket reply = new DatagramPacket(buffer, buffer.length);
+                        dSocket.receive(reply);
+                        status[extractIntFromReply(reply)] = -1;
                     }
                 }
-
-                //TODO: Make sure that we are recieving a response from the server and updating status accordingly... right now we will never leave this loop
+                if(status[windowStart] == -1){
+                    windowStart++;
+                    windowEnd++;
+                }
                 completed = isCompleted(status);
             }
 
@@ -132,8 +158,8 @@ public class Client {
             e.printStackTrace();
         }
         finally {
-            if(dsocket != null){
-                dsocket.close();
+            if(dSocket != null){
+                dSocket.close();
             }
         }
 
