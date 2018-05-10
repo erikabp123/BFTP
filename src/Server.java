@@ -7,50 +7,111 @@ import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 
 public class Server {
 
-    public static int B = 1000;
+    
+
+//    public static void main(String[] args) {
+//        try {
+//            DatagramSocket dSocket = new DatagramSocket(6788);
+//
+//            byte[] buffer = new byte[SentFile.B];
+//            HashMap<Integer, byte[]> fileData = new HashMap<>();
+//            long fileSize = 0;
+//
+//            // receive packets loop
+//            while (!validateAllPacketsReceived(fileData, fileSize)) {
+//                DatagramPacket request = new DatagramPacket(buffer, buffer.length);
+//                dSocket.receive(request);
+//
+//                byte[] i = Arrays.copyOfRange(request.getData(), 12, 16);
+//
+//                DatagramPacket reply = new DatagramPacket(i, i.length, request.getAddress(), request.getPort());
+//                System.out.println(ByteBuffer.wrap(i).getInt());
+//                dSocket.send(reply); //Ack
+//
+//                byte[] sizeAsByte = Arrays.copyOfRange(request.getData(), 4, 12);
+//                fileSize = ByteBuffer.wrap(sizeAsByte).getLong();
+//                byte[] data = Arrays.copyOfRange(request.getData(), 16, request.getData().length);
+//                fileData.put(SentFile.extractIntFromByteArray(i), data); //overwrites duplicated packages, which we want
+//            }
+//
+//            byte[] merged = mergeArrays(fileData);
+//            FileOutputStream fileOuputStream = new FileOutputStream("received.txt");
+//            fileOuputStream.write(merged);
+//            fileOuputStream.close();
+//
+//        } catch (java.io.IOException e) {
+//            e.printStackTrace();
+//        }
+//    }
 
     public static void main(String[] args) {
         try {
             DatagramSocket dSocket = new DatagramSocket(6788);
 
-            byte[] buffer = new byte[Server.B];
-            ArrayList<byte[]> fileData = new ArrayList<>();
-            boolean allReceived = false;
-            while (!allReceived) {
+            byte[] buffer = new byte[SentFile.B];
+            HashMap<String, SentFile> filesInTransit = new HashMap<>();
+
+            // receive packets loop
+            while (true) {
                 DatagramPacket request = new DatagramPacket(buffer, buffer.length);
                 dSocket.receive(request);
 
-                byte[] i = Arrays.copyOfRange(request.getData(), 12, 16);
+                byte[] payload = request.getData();
+                byte[] i = SentFile.extractiFromPayload(payload);
+                byte[] R = SentFile.extractRFromPayload(payload);
+                String senderID = SentFile.getSenderAsIDString(request);
 
-                DatagramPacket reply = new DatagramPacket(i, i.length, request.getAddress(), request.getPort());
-                System.out.println(ByteBuffer.wrap(i).getInt());
-                dSocket.send(reply); //Ack
-
-                byte[] data = Arrays.copyOfRange(request.getData(), 16, request.getData().length);
-                fileData.add(data);
-                if (fileData.size() == 2292) {
-                    allReceived = true;
+                if(filesInTransit.containsKey(senderID)){
+                    boolean finished = filesInTransit.get(senderID).packetReceived(payload);
+                    if(finished){
+                        filesInTransit.remove(senderID);
+                    }
+                } else {
+                    SentFile newFileInTransit = new SentFile(payload);
+                    if(!newFileInTransit.validateAllPacketsReceived()){
+                        filesInTransit.put(senderID, new SentFile(payload));
+                    }
                 }
+
+                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                try {
+                    outputStream.write(R);
+                    outputStream.write(i);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                byte[] msg = outputStream.toByteArray();
+
+                DatagramPacket reply = new DatagramPacket(msg, msg.length, request.getAddress(), request.getPort());
+
+                dSocket.send(reply); //Ack
             }
-
-            byte[] merged = mergeArrays(fileData);
-            FileOutputStream fileOuputStream = new FileOutputStream("received");
-            fileOuputStream.write(merged);
-            fileOuputStream.close();
-
         } catch (java.io.IOException e) {
             e.printStackTrace();
         }
     }
 
-    public static byte[] mergeArrays(ArrayList<byte[]> fileData) {
+    public static boolean validateAllPacketsReceived(HashMap<Integer, byte[]> fileData, long fileSize){
+        if(fileData.isEmpty()){
+            return false;
+        }
+        int numOfPackets = (int)(fileSize + SentFile.B - 1) / SentFile.B;
+        if(fileData.size() == numOfPackets){
+            System.out.println("All packets received!");
+            return true;
+        }
+        return false;
+    }
+
+    public static byte[] mergeArrays(HashMap<Integer, byte[]> fileData) {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         try {
-            for (byte[] data : fileData) {
-                outputStream.write(data);
+            for(int i=0; i<fileData.size(); i++){
+                outputStream.write(fileData.get(i));
             }
         } catch (IOException e) {
             e.printStackTrace();

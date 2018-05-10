@@ -30,12 +30,12 @@ public class Client {
         byte[] byteArrayOfR = ByteBuffer.allocate(4).putInt(R).array();
 
         byte[] fileArray = fileToByteArray(file);
-        int numOfPackets = (int) (size + Server.B - 1) / Server.B; //we need to round up since it's integer/long division and it automatically floors
+        int numOfPackets = (int) (size + SentFile.B - 1) / SentFile.B; //we need to round up since it's integer/long division and it automatically floors
 
         ArrayList<byte[]> packets = new ArrayList<>();
         for (int i = 0; i < numOfPackets; i++) {
-            int start = i * Server.B;
-            int end = start + Server.B;
+            int start = i * SentFile.B;
+            int end = start + SentFile.B;
             byte[] byteArrayOfI = ByteBuffer.allocate(4).putInt(i).array();
             byte[] packet;
             byte[] data;
@@ -88,28 +88,6 @@ public class Client {
 
         client.sendPackets(packets);
 
-//        int[] status = new int[packets.size()];
-//        try {
-//            DatagramSocket dSocket = new DatagramSocket();
-//            for(DatagramPacket packet : packets){
-//                dSocket.send(packet);
-//            }
-//
-//            byte[] buffer = new byte[Server.B];
-//            DatagramPacket reply = new DatagramPacket(buffer, buffer.length);
-//            dSocket.receive(reply);
-//            System.out.println(reply);
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-
-
-    }
-
-
-    public static int extractIntFromReply(DatagramPacket reply){
-        byte[] intAsByteArray = reply.getData();
-        return ByteBuffer.wrap(intAsByteArray).getInt();
     }
 
     public boolean isCompleted(long[] status){
@@ -125,7 +103,6 @@ public class Client {
 
     public void sendPackets(ArrayList<DatagramPacket> packets){
         int windowSize = 5;
-        int noOfPackets = packets.size();
         int windowStart = 0;
         int windowEnd = windowStart + windowSize - 1;
         DatagramSocket dSocket = null;
@@ -141,10 +118,10 @@ public class Client {
                         dSocket.send(packets.get(i));
                         status[i] = System.currentTimeMillis();
 
-                        byte[] buffer = new byte[Server.B];
+                        byte[] buffer = new byte[SentFile.B];
                         DatagramPacket reply = new DatagramPacket(buffer, buffer.length);
                         dSocket.receive(reply);
-                        status[extractIntFromReply(reply)] = -1;
+                        status[SentFile.extractIntFromByteArray(extractiFromResponse(reply.getData()))] = -1;
                     }
                 }
                 if(status[windowStart] == -1){
@@ -163,6 +140,10 @@ public class Client {
             }
         }
 
+    }
+
+    public byte[] extractiFromResponse(byte[] payload){
+        return Arrays.copyOfRange(payload, 4, 8);
     }
 
 
