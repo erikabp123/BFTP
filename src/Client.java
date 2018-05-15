@@ -22,6 +22,16 @@ public class Client {
         return array;
     }
 
+    public String getFileExtension(File file){
+        String extension = "";
+
+        int i = file.getName().lastIndexOf('.');
+        if (i > 0) {
+            extension = file.getName().substring(i+1);
+        }
+        return extension;
+    }
+
     public ArrayList<byte[]> splitByteArray(File file) {
         long size = file.length();
         byte[] byteArrayOfS = ByteBuffer.allocate(8).putLong(size).array();
@@ -31,6 +41,10 @@ public class Client {
 
         byte[] fileArray = fileToByteArray(file);
         int numOfPackets = (int) (size + SentFile.B - 1) / SentFile.B; //we need to round up since it's integer/long division and it automatically floors
+
+        String fileName = getFileExtension(file);
+
+        byte[] byteArrayOfName = fileName.getBytes();
 
         ArrayList<byte[]> packets = new ArrayList<>();
         for (int i = 0; i < numOfPackets; i++) {
@@ -61,7 +75,24 @@ public class Client {
             }
         }
 
+        byte[] fileNamePacket = createFileNamePacket(byteArrayOfR, byteArrayOfS, ByteBuffer.allocate(4).putInt(numOfPackets).array(), byteArrayOfName);
+
+        packets.add(fileNamePacket);
+
         return packets;
+    }
+
+    public byte[] createFileNamePacket(byte[] R, byte[] size, byte[] i, byte[] fileName){
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        try {
+            outputStream.write(R);
+            outputStream.write(size);
+            outputStream.write(i);
+            outputStream.write(fileName);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return outputStream.toByteArray();
     }
 
     public ArrayList<DatagramPacket> createDatagramPackets(ArrayList<byte[]> bytePackets){
@@ -82,7 +113,8 @@ public class Client {
     }
 
     public static void main(String[] args) {
-        File file = new File("test.txt");
+        String fileName = "test.txt";
+        File file = new File("testFiles/" + fileName);
         Client client = new Client();
         ArrayList<DatagramPacket> packets = client.createDatagramPackets(client.splitByteArray(file));
 
@@ -96,18 +128,18 @@ public class Client {
                 return false;
             }
         }
-        System.out.println("Completed");
+        System.out.println("Completed transfer!");
         return true;
     }
 
 
     public void sendPackets(ArrayList<DatagramPacket> packets){
-        int windowSize = 5;
         int windowStart = 0;
-        int windowEnd = windowStart + windowSize - 1;
+        int windowEnd = windowStart + SentFile.WINDOW_SIZE;
         DatagramSocket dSocket = null;
         boolean completed = false;
         long[] status = new long [packets.size()];
+        System.out.println("Amount of packets: " + packets.size());
 
         try {
             dSocket = new DatagramSocket();
@@ -117,6 +149,10 @@ public class Client {
                     if(status[i] == 0 || status[i] >= delay){
                         dSocket.send(packets.get(i));
                         status[i] = System.currentTimeMillis();
+
+//                        if(i == packets.size() - 1){
+//                            System.out.println(SentFile.extractStringFromByteArray(SentFile.extractFileNameFromPayload(packets.get(i).getData())));
+//                        }
 
                         byte[] buffer = new byte[SentFile.B];
                         DatagramPacket reply = new DatagramPacket(buffer, buffer.length);

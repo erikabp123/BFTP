@@ -52,7 +52,7 @@ public class Server {
         try {
             DatagramSocket dSocket = new DatagramSocket(6788);
 
-            byte[] buffer = new byte[SentFile.B];
+            byte[] buffer = new byte[SentFile.B + 16];
             HashMap<String, SentFile> filesInTransit = new HashMap<>();
 
             // receive packets loop
@@ -71,6 +71,7 @@ public class Server {
                         filesInTransit.remove(senderID);
                     }
                 } else {
+                    System.out.println("Received new file from: " + senderID);
                     SentFile newFileInTransit = new SentFile(payload);
                     if(!newFileInTransit.validateAllPacketsReceived()){
                         filesInTransit.put(senderID, new SentFile(payload));
@@ -93,30 +94,6 @@ public class Server {
         } catch (java.io.IOException e) {
             e.printStackTrace();
         }
-    }
-
-    public static boolean validateAllPacketsReceived(HashMap<Integer, byte[]> fileData, long fileSize){
-        if(fileData.isEmpty()){
-            return false;
-        }
-        int numOfPackets = (int)(fileSize + SentFile.B - 1) / SentFile.B;
-        if(fileData.size() == numOfPackets){
-            System.out.println("All packets received!");
-            return true;
-        }
-        return false;
-    }
-
-    public static byte[] mergeArrays(HashMap<Integer, byte[]> fileData) {
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        try {
-            for(int i=0; i<fileData.size(); i++){
-                outputStream.write(fileData.get(i));
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return outputStream.toByteArray();
     }
 
 
