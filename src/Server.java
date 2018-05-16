@@ -74,7 +74,7 @@ public class Server {
                     System.out.println("Received new file from: " + senderID);
                     SentFile newFileInTransit = new SentFile(payload);
                     if(!newFileInTransit.validateAllPacketsReceived()){
-                        filesInTransit.put(senderID, new SentFile(payload));
+                        filesInTransit.put(senderID, newFileInTransit);
                     }
                 }
 
