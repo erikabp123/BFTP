@@ -1,6 +1,5 @@
 import java.io.*;
 import java.net.DatagramPacket;
-import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -73,7 +72,7 @@ public class SentFile {
             fileOutputStream = null;
             System.gc();
             Path source = Paths.get(tempName + ".part");
-            Files.move(source, source.resolveSibling(tempName + "." + fileName));
+            Files.move(source, source.resolveSibling(fileName));
 //            File partFile = new File(tempName + ".part");
 //            File finishedFile = new File(fileName);
 //            partFile.renameTo(finishedFile);
@@ -98,7 +97,6 @@ public class SentFile {
         if (lastPacketWritten != numOfPackets - 1 && fileName == null) {
             return false;
         }
-        System.out.println("All packets received!");
         return true;
     }
 
@@ -160,7 +158,6 @@ public class SentFile {
         if(isNamePacket(i)){
             data = extractFileNameFromPayload(payload);
             fileName = extractStringFromByteArray(data);
-            System.out.println(fileName);
         } else if(i == numOfPackets - 2){
             data = extractDataFromFinalPacketPayload(payload, fileSize);
             determineIfWriteOrStore(i, data);
@@ -194,7 +191,8 @@ public class SentFile {
     }
 
     public static byte[] extractFileNameFromPayload(byte[] payload){
-        return Arrays.copyOfRange(payload, 16, 19);
+        int fileNameLength = extractIntFromByteArray(Arrays.copyOfRange(payload, 16, 20));
+        return Arrays.copyOfRange(payload, 20, 20 + fileNameLength);
     }
 
     public static byte[] extractDataFromFinalPacketPayload(byte[] payload, long fileSize) {
@@ -206,8 +204,8 @@ public class SentFile {
     public static String getSenderAsIDString(DatagramPacket packet) {
         String address = packet.getAddress().getHostName();
         String port = "" + packet.getPort();
-        String R = extractStringFromByteArray(extractRFromPayload(packet.getData()));
-        return R + address + port;
+        String R = "" + extractIntFromByteArray(extractRFromPayload(packet.getData()));
+        return R + ":" + address + ":" + port;
     }
 
 }

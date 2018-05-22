@@ -1,0 +1,18 @@
+Sending file: test.txt
+File size: 1.6227378845214844MB
+Amount of packets: 1703
+#----------------------------------#
+#       Completed transfer!        #
+#----------------------------------#
+Peak memory usage while transferring file: 9.110572814941406MB
+
+
+
+
+Sending file: IMG_1098.MOV
+File size: 1136.262225151062MB
+Amount of packets: 1191459
+#----------------------------------#
+#       Completed transfer!        #
+#----------------------------------#
+Peak memory usage while transferring file: 38.857177734375MB
