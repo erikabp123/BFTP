@@ -10,7 +10,6 @@ public class Client {
 
     private String fileName;
     private long size;
-    private int R;
     private byte[] byteArrayOfS;
     private byte[] byteArrayOfR;
     private byte[] byteArrayOfName;
@@ -19,16 +18,15 @@ public class Client {
     private int port;
     private String host;
     private long[] status;
-    private int fileNameLength;
     private byte[] byteArrayOfNameLength;
     private double maxMem;
 
     public Client(File file, int port, String host) {
         try {
-            this.R = (new Random()).nextInt();
+            int R = (new Random()).nextInt();
             this.size = file.length();
             this.fileName = file.getName();
-            fileNameLength = fileName.length();
+            int fileNameLength = fileName.length();
             this.byteArrayOfR = ByteBuffer.allocate(4).putInt(R).array();
             this.byteArrayOfS = ByteBuffer.allocate(8).putLong(size).array();
             this.byteArrayOfName = fileName.getBytes();
@@ -83,91 +81,6 @@ public class Client {
         return packet;
     }
 
-
-    public byte[] fileToByteArray(File file) {
-        byte[] array = new byte[0];
-        try {
-            array = Files.readAllBytes(file.toPath());
-        } catch (IOException e) {
-            System.out.println("Error trying to read file " + file.getName());
-            e.printStackTrace();
-        }
-        return array;
-    }
-
-    public String getFileExtension(File file) {
-        String extension = "";
-
-        int i = file.getName().lastIndexOf('.');
-        if (i > 0) {
-            extension = file.getName().substring(i + 1);
-        }
-        return extension;
-    }
-
-    public ArrayList<byte[]> splitByteArray(File file) {
-        long size = file.length();
-        byte[] byteArrayOfS = ByteBuffer.allocate(8).putLong(size).array();
-
-        int R = (new Random()).nextInt();
-        byte[] byteArrayOfR = ByteBuffer.allocate(4).putInt(R).array();
-
-        byte[] fileArray = fileToByteArray(file);
-        int numOfPackets = (int) (size + SentFile.B - 1) / SentFile.B; //we need to round up since it's integer/long division and it automatically floors
-
-        String fileName = getFileExtension(file);
-
-        byte[] byteArrayOfName = fileName.getBytes();
-
-        ArrayList<byte[]> packets = new ArrayList<>();
-        for (int i = 0; i < numOfPackets; i++) {
-            int start = i * SentFile.B;
-            int end = start + SentFile.B;
-            byte[] byteArrayOfI = ByteBuffer.allocate(4).putInt(i).array();
-            byte[] packet;
-            byte[] data;
-
-            try {
-                //prevent index out of bounds exception in the case that we don't fully fill the last packet
-                if (fileArray.length < end) {
-                    data = Arrays.copyOfRange(fileArray, start, fileArray.length);
-                } else {
-                    data = Arrays.copyOfRange(fileArray, start, end);
-                }
-
-                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-                outputStream.write(byteArrayOfR);
-                outputStream.write(byteArrayOfS);
-                outputStream.write(byteArrayOfI);
-                outputStream.write(data);
-                packet = outputStream.toByteArray();
-
-                packets.add(packet);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
-        byte[] fileNamePacket = createFileNamePacket(byteArrayOfR, byteArrayOfS, ByteBuffer.allocate(4).putInt(numOfPackets).array(), byteArrayOfName);
-
-        packets.add(fileNamePacket);
-
-        return packets;
-    }
-
-    public byte[] createFileNamePacket(byte[] R, byte[] size, byte[] i, byte[] fileName) {
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        try {
-            outputStream.write(R);
-            outputStream.write(size);
-            outputStream.write(i);
-            outputStream.write(fileName);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return outputStream.toByteArray();
-    }
-
     public byte[] createFileNamePacket() {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         int i = numOfPackets - 1;
@@ -182,51 +95,6 @@ public class Client {
             e.printStackTrace();
         }
         return outputStream.toByteArray();
-    }
-
-    public ArrayList<DatagramPacket> createDatagramPackets(ArrayList<byte[]> bytePackets) {
-        ArrayList<DatagramPacket> packets = new ArrayList<>();
-        try {
-            String host = "localhost";
-            int port = 6788;
-            InetAddress address = InetAddress.getByName(host);
-
-            for (byte[] bytePacket : bytePackets) {
-                DatagramPacket packet = new DatagramPacket(bytePacket, bytePacket.length, address, port);
-                packets.add(packet);
-            }
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
-        }
-        return packets;
-    }
-
-    public static void main(String[] args) {
-        double memUseBefore = MemoryTools.usedMemory();
-        int port = 6788;
-        String host = "localhost";
-        String fileName = "IMG_1098.MOV";
-        File file = new File("testFiles/" + fileName);
-
-        Client client = new Client(file, port, host);
-//        ArrayList<DatagramPacket> packets = client.createDatagramPackets(client.splitByteArray(file));
-//        client.sendPackets(packets);
-        client.sendPackets();
-        double memDuring = client.getMaxMem();
-        System.out.println("Peak memory usage while transferring file: " + (memDuring - memUseBefore) + "MB");
-
-    }
-
-    public boolean isCompleted(long[] status) {
-        for (int i = 0; i < status.length; i++) {
-            if (status[i] != -1) {
-                return false;
-            }
-        }
-        System.out.println("#----------------------------------#");
-        System.out.println("#       Completed transfer!        #");
-        System.out.println("#----------------------------------#");
-        return true;
     }
 
     public boolean isCompleted() {
@@ -305,53 +173,41 @@ public class Client {
         return maxMem;
     }
 
-    public void sendPackets(ArrayList<DatagramPacket> packets) {
-        int windowStart = 0;
-        int windowEnd = windowStart + SentFile.WINDOW_SIZE;
-        DatagramSocket dSocket = null;
-        boolean completed = false;
-        long[] status = new long[packets.size()];
-        System.out.println("Amount of packets: " + packets.size());
-
-        try {
-            dSocket = new DatagramSocket();
-            while (!completed) {
-                for (int i = windowStart; i < windowEnd; i++) {
-                    long delay = System.currentTimeMillis() - status[i];
-                    if (status[i] == 0 || status[i] >= delay) {
-                        dSocket.send(packets.get(i));
-                        status[i] = System.currentTimeMillis();
-
-//                        if(i == packets.size() - 1){
-//                            System.out.println(SentFile.extractStringFromByteArray(SentFile.extractFileNameFromPayload(packets.get(i).getData())));
-//                        }
-
-                        byte[] buffer = new byte[SentFile.B];
-                        DatagramPacket reply = new DatagramPacket(buffer, buffer.length);
-                        dSocket.receive(reply);
-                        status[SentFile.extractIntFromByteArray(extractiFromResponse(reply.getData()))] = -1;
-                    }
-                }
-                if (status[windowStart] == -1) {
-                    windowStart++;
-                    windowEnd++;
-                }
-                completed = isCompleted(status);
-            }
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            if (dSocket != null) {
-                dSocket.close();
-            }
-        }
-
-    }
-
     public byte[] extractiFromResponse(byte[] payload) {
         return Arrays.copyOfRange(payload, 4, 8);
     }
 
+
+
+
+
+    public static void main(String[] args) {
+        String host;
+        int port;
+        String filePath;
+
+        if(args.length != 3){
+            System.out.println("Incorrect amount of arguments! Must supply 3 arguments: host, port, and file path! " +
+                    "Using default testing values!");
+            host = "localhost";
+            port = 6788;
+            filePath = "testFiles/" + "test.txt";
+        } else {
+            host = args[0];
+            port = new Integer(args[1]);
+            filePath = args[2];
+        }
+
+
+        double memUseBefore = MemoryTools.usedMemory();
+
+        File file = new File(filePath);
+
+        Client client = new Client(file, port, host);
+        client.sendPackets();
+        double memDuring = client.getMaxMem();
+        System.out.println("Peak memory usage while transferring file: " + (memDuring - memUseBefore) + "MB");
+
+    }
 
 }

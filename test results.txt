@@ -8,6 +8,15 @@ Peak memory usage while transferring file: 9.110572814941406MB
 
 
 
+Sending file: slide 1.pdf
+File size: 10.909916877746582MB
+Amount of packets: 11441
+#----------------------------------#
+#       Completed transfer!        #
+#----------------------------------#
+Peak memory usage while transferring file: 29.22016143798828MB
+
+
 
 Sending file: IMG_1098.MOV
 File size: 1136.262225151062MB
