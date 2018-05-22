@@ -70,7 +70,11 @@ public class SentFile {
             fileOutputStream = null;
             System.gc();
             Path source = Paths.get(tempName + ".part");
-            Files.move(source, source.resolveSibling(fileName));
+            if((new File(fileName)).exists()){
+                Files.move(source, source.resolveSibling("(1) " + fileName));
+            } else {
+                Files.move(source, source.resolveSibling(fileName));
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
