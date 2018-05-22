@@ -1,8 +1,6 @@
 import java.io.*;
 import java.net.*;
 import java.nio.ByteBuffer;
-import java.nio.file.Files;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Random;
 
@@ -148,7 +146,7 @@ public class Client {
                         byte[] buffer = new byte[SentFile.B];
                         DatagramPacket reply = new DatagramPacket(buffer, buffer.length);
                         dSocket.receive(reply);
-                        status[SentFile.extractIntFromByteArray(extractiFromResponse(reply.getData()))] = -1;
+                        status[ByteArrayMethods.extractIntFromByteArray(ByteArrayMethods.extractiFromResponse(reply.getData()))] = -1;
                     }
                     maxMem = getMaxMemoryUsed(maxMem);
                 }
@@ -173,9 +171,7 @@ public class Client {
         return maxMem;
     }
 
-    public byte[] extractiFromResponse(byte[] payload) {
-        return Arrays.copyOfRange(payload, 4, 8);
-    }
+
 
 
 

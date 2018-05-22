@@ -19,8 +19,8 @@ public class Server {
                 dSocket.receive(request);
 
                 byte[] payload = request.getData();
-                byte[] i = SentFile.extractiFromPayload(payload);
-                byte[] R = SentFile.extractRFromPayload(payload);
+                byte[] i = ByteArrayMethods.extractiFromPayload(payload);
+                byte[] R = ByteArrayMethods.extractRFromPayload(payload);
                 String senderID = SentFile.getSenderAsIDString(request);
 
                 if(filesInTransit.containsKey(senderID)){

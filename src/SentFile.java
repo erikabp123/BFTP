@@ -13,7 +13,6 @@ public class SentFile {
     public static int WINDOW_SIZE = 5;
     private HashMap<Integer, byte[]> fileData;
     private long fileSize;
-    private int R;
     private int numOfPackets;
     private FileOutputStream fileOutputStream;
     private int lastPacketWritten;
@@ -32,21 +31,20 @@ public class SentFile {
             e.printStackTrace();
         }
 
-        int i = extractIntFromByteArray(extractiFromPayload(payload));
-        fileSize = extractLongFromByteArray(extractSizeFromPayload(payload));
-        R = extractIntFromByteArray(extractRFromPayload(payload));
+        int i = ByteArrayMethods.extractIntFromByteArray(ByteArrayMethods.extractiFromPayload(payload));
+        fileSize = ByteArrayMethods.extractLongFromByteArray(ByteArrayMethods.extractSizeFromPayload(payload));
         numOfPackets = (int) (fileSize + B - 1) / B + 1;
 
         byte[] data = null;
 
         if(isNamePacket(i)){
-            data = extractFileNameFromPayload(payload);
-            fileName = extractStringFromByteArray(data);
+            data = ByteArrayMethods.extractFileNameFromPayload(payload);
+            fileName = ByteArrayMethods.extractStringFromByteArray(data);
         } else if(i == numOfPackets - 2){
-            data = extractDataFromFinalPacketPayload(payload, fileSize);
+            data = ByteArrayMethods.extractDataFromFinalPacketPayload(payload, fileSize);
             determineIfWriteOrStore(i, data);
         } else {
-            data = extractDataFromPayload(payload);
+            data = ByteArrayMethods.extractDataFromPayload(payload);
             determineIfWriteOrStore(i, data);
         }
 
@@ -73,24 +71,9 @@ public class SentFile {
             System.gc();
             Path source = Paths.get(tempName + ".part");
             Files.move(source, source.resolveSibling(fileName));
-//            File partFile = new File(tempName + ".part");
-//            File finishedFile = new File(fileName);
-//            partFile.renameTo(finishedFile);
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    public static int extractIntFromByteArray(byte[] array) {
-        return ByteBuffer.wrap(array).getInt();
-    }
-
-    public static long extractLongFromByteArray(byte[] array) {
-        return ByteBuffer.wrap(array).getLong();
-    }
-
-    public static String extractStringFromByteArray(byte[] array) {
-        return new String(array);
     }
 
     public boolean validateAllPacketsReceived() {
@@ -117,23 +100,6 @@ public class SentFile {
         }
     }
 
-    public void writeStoredPacketsToFile() {
-        try {
-            int packetWindow = lastPacketWritten + WINDOW_SIZE;
-            for (int i = lastPacketWritten; i < packetWindow; i++) {
-                if (fileData.containsKey(lastPacketWritten)) {
-                    fileOutputStream.write(fileData.get(lastPacketWritten));
-                    fileData.remove(lastPacketWritten);
-                    lastPacketWritten++;
-                } else {
-                    return;
-                }
-            }
-        } catch(IOException e){
-            e.printStackTrace();
-        }
-    }
-
     public void attemptToWriteStoredPacketToFile() {
         try {
             int packetToBeWritten = lastPacketWritten + 1;
@@ -150,19 +116,18 @@ public class SentFile {
         }
     }
 
-
     public boolean packetReceived(byte[] payload) {
-        int i = extractIntFromByteArray(Arrays.copyOfRange(payload, 12, 16));
+        int i = ByteArrayMethods.extractIntFromByteArray(Arrays.copyOfRange(payload, 12, 16));
         byte[] data = null;
 
         if(isNamePacket(i)){
-            data = extractFileNameFromPayload(payload);
-            fileName = extractStringFromByteArray(data);
+            data = ByteArrayMethods.extractFileNameFromPayload(payload);
+            fileName = ByteArrayMethods.extractStringFromByteArray(data);
         } else if(i == numOfPackets - 2){
-            data = extractDataFromFinalPacketPayload(payload, fileSize);
+            data = ByteArrayMethods.extractDataFromFinalPacketPayload(payload, fileSize);
             determineIfWriteOrStore(i, data);
         } else {
-            data = extractDataFromPayload(payload);
+            data = ByteArrayMethods.extractDataFromPayload(payload);
             determineIfWriteOrStore(i, data);
         }
 
@@ -174,38 +139,12 @@ public class SentFile {
         return false;
     }
 
-    public static byte[] extractRFromPayload(byte[] payload) {
-        return Arrays.copyOfRange(payload, 0, 4);
-    }
-
-    public static byte[] extractiFromPayload(byte[] payload) {
-        return Arrays.copyOfRange(payload, 12, 16);
-    }
-
-    public static byte[] extractSizeFromPayload(byte[] payload) {
-        return Arrays.copyOfRange(payload, 4, 12);
-    }
-
-    public static byte[] extractDataFromPayload(byte[] payload) {
-        return Arrays.copyOfRange(payload, 16, payload.length);
-    }
-
-    public static byte[] extractFileNameFromPayload(byte[] payload){
-        int fileNameLength = extractIntFromByteArray(Arrays.copyOfRange(payload, 16, 20));
-        return Arrays.copyOfRange(payload, 20, 20 + fileNameLength);
-    }
-
-    public static byte[] extractDataFromFinalPacketPayload(byte[] payload, long fileSize) {
-        int packetNumber  = (int) (fileSize + B - 1) / B - 1;
-        int endPoint = (int) (fileSize - packetNumber*B + 16);
-        return Arrays.copyOfRange(payload, 16, endPoint);
-    }
-
     public static String getSenderAsIDString(DatagramPacket packet) {
         String address = packet.getAddress().getHostName();
         String port = "" + packet.getPort();
-        String R = "" + extractIntFromByteArray(extractRFromPayload(packet.getData()));
+        String R = "" + ByteArrayMethods.extractIntFromByteArray(ByteArrayMethods.extractRFromPayload(packet.getData()));
         return R + ":" + address + ":" + port;
     }
+
 
 }
