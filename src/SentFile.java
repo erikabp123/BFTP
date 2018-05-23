@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Random;
 
 public class SentFile {
 
@@ -71,7 +72,8 @@ public class SentFile {
             System.gc();
             Path source = Paths.get(tempName + ".part");
             if((new File(fileName)).exists()){
-                Files.move(source, source.resolveSibling("(1) " + fileName));
+                int randomPrefix = (new Random()).nextInt();
+                Files.move(source, source.resolveSibling("(" + randomPrefix + ") " + fileName));
             } else {
                 Files.move(source, source.resolveSibling(fileName));
             }
