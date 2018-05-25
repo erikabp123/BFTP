@@ -139,10 +139,6 @@ public class Client {
                         }
                         status[i] = System.currentTimeMillis();
 
-//                        if(i == packets.size() - 1){
-//                            System.out.println(SentFile.extractStringFromByteArray(SentFile.extractFileNameFromPayload(packets.get(i).getData())));
-//                        }
-
                         byte[] buffer = new byte[SentFile.B];
                         DatagramPacket reply = new DatagramPacket(buffer, buffer.length);
                         dSocket.receive(reply);
