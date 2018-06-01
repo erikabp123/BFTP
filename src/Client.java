@@ -18,6 +18,7 @@ public class Client {
     private long[] status;
     private byte[] byteArrayOfNameLength;
     private double maxMem;
+    private double plp = 0;
 
     public Client(File file, int port, String host) {
         try {
@@ -118,6 +119,7 @@ public class Client {
     public void sendPackets() {
         int windowStart = 0;
         int windowEnd = windowStart + SentFile.WINDOW_SIZE;
+        int delayTime = 50;
         DatagramSocket dSocket = null;
         boolean completed = false;
         System.out.println("Sending file: " + fileName);
@@ -131,7 +133,7 @@ public class Client {
             while (!completed) {
                 for (int i = windowStart; i < windowEnd; i++) {
                     long delay = System.currentTimeMillis() - status[i];
-                    if (status[i] == 0 || status[i] >= delay) {
+                    if (status[i] == 0 || delay >= delayTime ) {
                         if(i == numOfPackets - 1){
                             dSocket.send(createDatagramPacket(createFileNamePacket()));
                         } else {
@@ -166,11 +168,6 @@ public class Client {
     public double getMaxMem(){
         return maxMem;
     }
-
-
-
-
-
 
 
     public static void main(String[] args) {
