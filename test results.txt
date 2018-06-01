@@ -5,6 +5,7 @@ Amount of packets: 1703
 #       Completed transfer!        #
 #----------------------------------#
 Peak memory usage while transferring file: 9.110572814941406MB
+File transfer took: 435ms
 
 
 
@@ -15,6 +16,7 @@ Amount of packets: 11441
 #       Completed transfer!        #
 #----------------------------------#
 Peak memory usage while transferring file: 29.22016143798828MB
+File transfer took: 2211ms
 
 
 

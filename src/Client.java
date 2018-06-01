@@ -192,14 +192,17 @@ public class Client {
 
 
         double memUseBefore = MemoryTools.usedMemory();
+        long startTime = System.currentTimeMillis();
 
         File file = new File(filePath);
 
         Client client = new Client(file, port, host);
         client.sendPackets();
         double memDuring = client.getMaxMem();
+        long endTime = System.currentTimeMillis();
+        long duration = (endTime - startTime);
         System.out.println("Peak memory usage while transferring file: " + (memDuring - memUseBefore) + "MB");
-
+        System.out.println("File transfer took: " + duration + "ms");
     }
 
 }
